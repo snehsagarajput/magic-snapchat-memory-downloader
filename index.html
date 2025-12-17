@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Magic Snapchat Memory Downloader</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         :root {
             --bg: #121212;
@@ -54,7 +55,7 @@
         }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
 
-        /* Header & Repo Link */
+        /* Header & Links */
         .header-row {
             display: flex;
             justify-content: space-between;
@@ -63,6 +64,10 @@
             padding-bottom: 20px;
             margin-bottom: 25px;
         }
+        .header-left {
+            display: flex;
+            flex-direction: column;
+        }
         h1 { 
             color: var(--accent); 
             margin: 0; 
@@ -70,7 +75,11 @@
             font-weight: 700;
             letter-spacing: 0.5px;
         }
-        .repo-link {
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .action-btn {
             text-decoration: none;
             color: var(--bg);
             background: var(--text-main);
@@ -81,9 +90,12 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            border: none;
+            cursor: pointer;
             transition: transform 0.2s;
         }
-        .repo-link:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255,255,255,0.2); }
+        .action-btn.info { background: #2979ff; color: white; }
+        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255,255,255,0.2); }
         
         /* Steps */
         .step-box {
@@ -224,9 +236,72 @@
             border-top: 1px solid var(--border);
             padding-top: 15px;
         }
+
+        /* MODAL STYLES */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-content {
+            background: #252525;
+            width: 100%;
+            max-width: 800px;
+            max-height: 85vh;
+            border-radius: 12px;
+            border: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #2a2a2a;
+            border-radius: 12px 12px 0 0;
+        }
+        .modal-header h2 { margin: 0; color: white; font-size: 20px; }
+        .close-modal {
+            background: none; border: none; color: #aaa; font-size: 24px; cursor: pointer; padding: 0; flex: none;
+        }
+        .close-modal:hover { color: white; }
+        .modal-body {
+            padding: 25px;
+            overflow-y: auto;
+            color: #ddd;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        /* Markdown Styles */
+        .modal-body h1, .modal-body h2, .modal-body h3 { color: var(--accent); margin-top: 20px; }
+        .modal-body h1 { border-bottom: 1px solid #444; padding-bottom: 10px; }
+        .modal-body code { background: #111; padding: 2px 5px; border-radius: 4px; font-family: monospace; color: #ffab40; }
+        .modal-body pre { background: #111; padding: 15px; border-radius: 6px; overflow-x: auto; }
+        .modal-body a { color: #64b5f6; }
     </style>
 </head>
 <body>
+
+<div class="modal-overlay" id="readmeModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>How It Works</h2>
+            <button class="close-modal" id="closeModalBtn">&times;</button>
+        </div>
+        <div class="modal-body" id="readmeContent">
+            Loading documentation...
+        </div>
+    </div>
+</div>
 
 <div class="container">
     <div id="criticalAlert">
@@ -235,14 +310,21 @@
     </div>
 
     <div class="header-row">
-        <h1>Magic Snapchat Downloader</h1>
-        <a href="https://github.com/snehsagarajput/magic-snapchat-memory-downloader" target="_blank" class="repo-link">
-            <i class="fab fa-github"></i> Star on GitHub
-        </a>
+        <div class="header-left">
+            <h1>Magic Snapchat Downloader</h1>
+        </div>
+        <div class="header-actions">
+            <button id="openReadmeBtn" class="action-btn info">
+                <i class="fas fa-book"></i> How to Use
+            </button>
+            <a href="https://github.com/snehsagarajput/magic-snapchat-memory-downloader" target="_blank" class="action-btn">
+                <i class="fab fa-github"></i> Star
+            </a>
+        </div>
     </div>
 
     <div class="step-box active" id="step1">
-        <span class="step-title">Step 1: Enable Extension <span id="corsStatus" class="status-badge">NOT DETECTED</span></span>
+        <span class="step-title">Step 1: Enable Extension <span id="corsStatus" class="status-badge">CHECKING...</span></span>
         <p style="margin: 5px 0 15px 0; font-size: 14px; color: #ccc;">
             Browsers block direct downloads from Snapchat. Install the 
             <a href="https://chromewebstore.google.com/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf" target="_blank">Allow CORS Extension</a> 
@@ -291,7 +373,7 @@
         <button class="clear-btn" id="clearLogBtn">Clear Logs</button>
     </div>
     <div class="terminal" id="consoleOutput">
-        <div class="log-info">> System ready. Waiting for extension verification...</div>
+        <div class="log-info">> System ready. Checking extension status...</div>
     </div>
 
     <div class="privacy-note">
@@ -325,7 +407,12 @@
         startIndex: document.getElementById('startIndex'),
         concurrency: document.getElementById('concurrency'),
         clearLogBtn: document.getElementById('clearLogBtn'),
-        criticalAlert: document.getElementById('criticalAlert')
+        criticalAlert: document.getElementById('criticalAlert'),
+        // Modal
+        readmeModal: document.getElementById('readmeModal'),
+        openReadmeBtn: document.getElementById('openReadmeBtn'),
+        closeModalBtn: document.getElementById('closeModalBtn'),
+        readmeContent: document.getElementById('readmeContent')
     };
 
     // --- Logging System ---
@@ -349,10 +436,10 @@
     });
 
     // --- Extension Status Checker ---
-    async function checkExtensionStatus() {
+    async function checkExtensionStatus(isAutoCheck = false) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 2000); // Short timeout for background check
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
             
             await fetch('https://www.google.com', { 
                 method: 'GET', 
@@ -361,43 +448,49 @@
             });
             clearTimeout(timeoutId);
 
-            // Success
-            els.corsStatus.innerText = "CONNECTED";
-            els.corsStatus.className = "status-badge ok";
-            els.step1.style.borderLeftColor = "#00e676";
+            // SUCCESS
+            if(els.corsStatus.innerText !== "CONNECTED") {
+                log("✅ Extension detected & active.", 'success');
+                unlockSteps();
+            }
+            
+            // Clear alerts if any
             els.criticalAlert.style.display = 'none';
 
         } catch (err) {
-            // Fail
+            // FAIL
             els.corsStatus.innerText = "DISCONNECTED";
             els.corsStatus.className = "status-badge err";
             els.step1.style.borderLeftColor = "#ff5252";
+            
+            // Re-enable the button if we lost connection so user can retry manually
+            if(els.checkCorsBtn.disabled) {
+                els.checkCorsBtn.innerText = "Verify Extension is On";
+                els.checkCorsBtn.disabled = false;
+            }
 
             if (isRunning) {
                 els.criticalAlert.style.display = 'block';
-                log("⚠️ CRITICAL: CORS EXTENSION DISCONNECTED. DOWNLOADS MAY FAIL.", 'warn');
-                alert("⚠️ WARNING: The CORS extension seems to be inactive!\n\nPlease re-enable it immediately to prevent download errors.");
+                log("⚠️ CRITICAL: CORS EXTENSION DISCONNECTED.", 'warn');
             }
         }
     }
 
-    // Start background check every 10 seconds
-    setInterval(checkExtensionStatus, 10000);
+    // Run check immediately on load
+    checkExtensionStatus(true);
+    // Run check every 10 seconds
+    setInterval(() => checkExtensionStatus(true), 10000);
 
-    // --- Manual CORS Check (Button) ---
+    // Manual Button
     els.checkCorsBtn.addEventListener('click', async () => {
         log("Testing connection permissions...", 'info');
         await checkExtensionStatus();
-        
-        // Only unlock if check passed (we check class name set by the function above)
-        if (els.corsStatus.classList.contains('ok')) {
-            unlockSteps();
-        } else {
-             log("❌ Extension not detected. Please install 'Allow CORS' and toggle it ON.", 'error');
-        }
     });
 
     function unlockSteps() {
+        els.corsStatus.innerText = "CONNECTED";
+        els.corsStatus.className = "status-badge ok";
+        els.step1.style.borderLeftColor = "#00e676";
         els.checkCorsBtn.innerText = "Extension Active";
         els.checkCorsBtn.disabled = true;
         
@@ -405,7 +498,36 @@
         els.fileInput.disabled = false;
         els.startIndex.disabled = false;
         els.concurrency.disabled = false;
-        log("✅ Extension verified. Please select your JSON file.", 'success');
+    }
+
+    // --- Modal Logic (README Fetch) ---
+    els.openReadmeBtn.addEventListener('click', async () => {
+        els.readmeModal.style.display = 'flex';
+        
+        // Fetch only if empty
+        if(els.readmeContent.innerHTML.includes("Loading")) {
+            try {
+                // Fetch Raw Markdown from GitHub
+                const response = await fetch('https://raw.githubusercontent.com/snehsagarajput/magic-snapchat-memory-downloader/main/README.md');
+                if(!response.ok) throw new Error("Failed to load README");
+                const text = await response.text();
+                // Render Markdown to HTML using marked.js
+                els.readmeContent.innerHTML = marked.parse(text);
+            } catch (e) {
+                els.readmeContent.innerHTML = "<p style='color:red'>Error loading documentation. Please visit the GitHub Repo directly.</p>";
+            }
+        }
+    });
+
+    els.closeModalBtn.addEventListener('click', () => {
+        els.readmeModal.style.display = 'none';
+    });
+
+    // Close on click outside
+    window.onclick = function(event) {
+        if (event.target == els.readmeModal) {
+            els.readmeModal.style.display = "none";
+        }
     }
 
     // --- File Loading ---
@@ -611,7 +733,7 @@
         els.startIndex.disabled = false;
         els.concurrency.disabled = false;
         els.progressBar.style.backgroundColor = ""; // Reset color
-        els.criticalAlert.style.display = 'none'; // Hide alert on reset
+        els.criticalAlert.style.display = 'none';
     }
 
     window.onbeforeunload = function() {
