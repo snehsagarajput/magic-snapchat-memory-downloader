@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snapchat Memory Exporter (Free)</title>
+    <title>SnapSaver Local - Memory Exporter</title>
     <style>
         :root {
             --bg: #1a1a1a;
@@ -33,9 +33,10 @@
             border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.6);
         }
-        h1 { color: var(--accent); margin-top: 0; text-align: center; border-bottom: 1px solid #444; padding-bottom: 10px;}
+        h1 { color: var(--accent); margin-top: 0; text-align: center; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 5px;}
+        .subtitle { text-align: center; font-size: 12px; color: #888; margin-bottom: 20px; display: block;}
         
-        /* Setup Steps */
+        /* Steps */
         .step-box {
             background: #333;
             padding: 15px;
@@ -50,7 +51,15 @@
         a { color: #4db8ff; text-decoration: none; border-bottom: 1px dotted #4db8ff; }
         a:hover { color: white; }
 
-        /* Controls */
+        /* Inputs Grid */
+        .input-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .input-group label { font-size: 12px; color: #aaa; display: block; margin-bottom: 4px; }
+        
         input[type="file"], input[type="number"] {
             width: 100%;
             padding: 10px;
@@ -59,7 +68,6 @@
             color: white;
             border-radius: 4px;
             box-sizing: border-box;
-            margin-top: 5px;
         }
         
         .btn-row { display: flex; gap: 10px; }
@@ -80,7 +88,7 @@
         button.stop { background: var(--err); color: white; display: none; }
         button.check { background: #4db8ff; color: #000; }
 
-        /* Terminal Output */
+        /* Terminal */
         .terminal {
             background: var(--term-bg);
             color: var(--text);
@@ -97,9 +105,10 @@
         .log-entry { margin-bottom: 2px; }
         .log-err { color: var(--err); }
         .log-success { color: var(--accent); }
+        .log-warn { color: orange; font-weight: bold; border: 1px dashed orange; padding: 5px; margin: 5px 0; }
         .log-info { color: #888; }
         
-        /* Progress Bar */
+        /* Progress */
         .progress-container {
             background: #444;
             height: 24px;
@@ -136,36 +145,55 @@
             color: #aaa;
         }
         .status-badge.ok { background: var(--accent); color: black; }
+
+        .privacy-note {
+            margin-top: 15px;
+            font-size: 11px;
+            color: #666;
+            text-align: center;
+            border-top: 1px solid #333;
+            padding-top: 10px;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Snapchat Memory Exporter</h1>
+    <h1>SnapSaver Local</h1>
+    <span class="subtitle">Client-Side Memory Exporter</span>
 
     <div class="step-box active" id="step1">
         <span class="step-title">STEP 1: ENABLE EXTENSION <span id="corsStatus" class="status-badge">NOT DETECTED</span></span>
         <p style="margin: 5px 0 10px 0; font-size: 13px;">
-            Browsers block external downloads by default. You must install the 
+            Required to bypass browser security. Install 
             <a href="https://chromewebstore.google.com/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf" target="_blank">Allow CORS Extension</a> 
-            and <strong>turn it ON</strong> (Purple Icon).
+            and <strong>toggle it ON</strong>.
         </p>
         <button class="check" id="checkCorsBtn">Verify Extension is On</button>
     </div>
 
     <div class="step-box locked" id="step2">
-        <span class="step-title">STEP 2: SELECT DATA</span>
+        <span class="step-title">STEP 2: CONFIGURE</span>
         <label style="font-size:13px">Load 'memories_history.json':</label>
         <input type="file" id="fileInput" accept=".json" disabled>
         
-        <div style="margin-top: 10px;">
-            <label style="font-size:13px">Start from Index (Optional):</label>
-            <input type="number" id="startIndex" value="0" min="0" placeholder="0" disabled>
+        <div class="input-grid">
+            <div class="input-group">
+                <label>Start Index:</label>
+                <input type="number" id="startIndex" value="0" min="0" placeholder="0" disabled>
+            </div>
+            <div class="input-group">
+                <label>Parallel Downloads (1-20):</label>
+                <input type="number" id="concurrency" value="5" min="1" max="20" disabled>
+            </div>
         </div>
     </div>
 
     <div class="step-box locked" id="step3">
         <span class="step-title">STEP 3: DOWNLOAD</span>
+        <p style="font-size: 12px; margin-bottom: 10px; color: #aaa;">
+            <strong>Note:</strong> Your browser will ask permission to download multiple files. Click <strong>Allow</strong>.
+        </p>
         <div class="btn-row">
             <button id="startBtn" disabled>START DOWNLOAD</button>
             <button id="stopBtn" class="stop">STOP EXPORT</button>
@@ -178,16 +206,21 @@
     </div>
 
     <div class="terminal" id="consoleOutput">
-        <div class="log-info">> System ready. Please complete Step 1.</div>
+        <div class="log-info">> System ready. Waiting for extension verification.</div>
+    </div>
+
+    <div class="privacy-note">
+        🔒 <strong>100% Private & Local.</strong> This tool runs entirely in your browser. No data is sent to any server.
     </div>
 </div>
 
 <script>
-    // --- State & DOM ---
     let memoryData = [];
     let isRunning = false;
     let abortController = null;
-    let corsEnabled = false;
+    let activeIndices = new Set(); // Tracks currently downloading indexes
+    let completedCount = 0;
+    let hasAttemptedDownload = false;
 
     const els = {
         step1: document.getElementById('step1'),
@@ -201,66 +234,66 @@
         consoleDiv: document.getElementById('consoleOutput'),
         progressBar: document.getElementById('progressBar'),
         progressText: document.getElementById('progressText'),
-        startIndex: document.getElementById('startIndex')
+        startIndex: document.getElementById('startIndex'),
+        concurrency: document.getElementById('concurrency')
     };
 
-    // --- Logger ---
     function log(msg, type = 'normal') {
         const div = document.createElement('div');
         div.className = 'log-entry';
         if (type === 'error') div.className += ' log-err';
         if (type === 'success') div.className += ' log-success';
+        if (type === 'warn') div.className += ' log-warn';
         if (type === 'info') div.className += ' log-info';
         
         const time = new Date().toLocaleTimeString('en-US', {hour12: false});
-        div.innerText = `[${time}] ${msg}`;
+        
+        // Don't add timestamp to warning blocks
+        if(type === 'warn') {
+            div.innerText = msg;
+        } else {
+            div.innerText = `[${time}] ${msg}`;
+        }
         
         els.consoleDiv.appendChild(div);
         els.consoleDiv.scrollTop = els.consoleDiv.scrollHeight;
     }
 
-    // --- STEP 1: CORS Check Logic ---
+    // --- STEP 1: CORS Check ---
     els.checkCorsBtn.addEventListener('click', async () => {
         log("Testing connection permissions...", 'info');
         try {
-            // We attempt to fetch Google. 
-            // Normal browser security BLOCKS this fetch because Google doesn't allow cross-origin.
-            // If the extension is ON, it injects headers that allow this to succeed (or return opaque).
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             
-            const response = await fetch('https://www.google.com', { 
+            await fetch('https://www.google.com', { 
                 method: 'GET', 
                 mode: 'cors',
                 signal: controller.signal
             });
             
-            // If we reach here without error, the extension is intercepting!
             clearTimeout(timeoutId);
             unlockSteps();
         } catch (err) {
-            // If it fails with "Failed to fetch", it means the browser blocked it (CORS).
             log("❌ Extension not detected. Please install 'Allow CORS' and toggle it ON.", 'error');
-            console.error(err);
         }
     });
 
     function unlockSteps() {
-        corsEnabled = true;
         els.corsStatus.innerText = "CONNECTED";
         els.corsStatus.className = "status-badge ok";
         els.step1.style.borderLeftColor = "#00ff00";
         els.checkCorsBtn.innerText = "Extension Active";
         els.checkCorsBtn.disabled = true;
         
-        // Unlock Step 2
         els.step2.className = "step-box active";
         els.fileInput.disabled = false;
         els.startIndex.disabled = false;
+        els.concurrency.disabled = false;
         log("✅ Extension verified. Please select your JSON file.", 'success');
     }
 
-    // --- STEP 2: File Loader ---
+    // --- STEP 2: File Load ---
     els.fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -273,31 +306,25 @@
                 const json = JSON.parse(event.target.result);
                 memoryData = json["Saved Media"] || [];
                 
-                if (memoryData.length === 0) {
-                    throw new Error("No 'Saved Media' found in JSON.");
-                }
+                if (memoryData.length === 0) throw new Error("No media found.");
 
                 log(`Loaded ${memoryData.length} memories successfully.`, 'success');
                 
-                // Unlock Step 3
                 els.step3.className = "step-box active";
                 els.startBtn.disabled = false;
                 els.startBtn.innerText = `START DOWNLOAD (${memoryData.length} FILES)`;
             } catch (err) {
                 log(`JSON Error: ${err.message}`, 'error');
-                alert("Invalid JSON file. Please select 'memories_history.json'.");
+                alert("Invalid JSON file.");
             }
         };
         reader.readAsText(file);
     });
 
-    // --- Utility: Format Date for Filename ---
+    // --- Helpers ---
     function sanitizeDate(dateStr) {
-        // Input: "2020-01-20 15:30:45 UTC"
-        // Output: "2020-01-20_15-30-45"
         try {
             let d = new Date(dateStr.replace(" UTC", ""));
-            // Fallback if date is invalid
             if (isNaN(d.getTime())) d = new Date();
             
             const yyyy = d.getFullYear();
@@ -313,108 +340,6 @@
         }
     }
 
-    // --- Utility: Sleep ---
-    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-    // --- STEP 3: Main Logic ---
-    els.startBtn.addEventListener('click', async () => {
-        if (!memoryData.length) return;
-        
-        isRunning = true;
-        abortController = new AbortController();
-        const signal = abortController.signal;
-
-        // UI Updates
-        els.startBtn.style.display = 'none';
-        els.stopBtn.style.display = 'block';
-        els.fileInput.disabled = true;
-
-        let startIdx = parseInt(els.startIndex.value) || 0;
-        let total = memoryData.length;
-
-        log("--- STARTING EXPORT ---");
-
-        for (let i = 0; i < total; i++) {
-            if (!isRunning) break;
-            
-            if (i < startIdx) continue;
-
-            let memory = memoryData[i];
-            
-            // Calculate Progress
-            let percent = ((i - startIdx) / (total - startIdx) * 100).toFixed(1);
-            if(percent < 0) percent = 0;
-            
-            els.progressBar.style.width = `${percent}%`;
-            els.progressText.innerText = `${percent}% | Processing #${i}`;
-            
-            log(`Processing #${i} (${memory['Date']})...`);
-
-            try {
-                // 1. Get Link (POST)
-                let linkResponse = await fetch(memory['Download Link'], {
-                    method: 'POST',
-                    signal: signal,
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-                });
-
-                if (!linkResponse.ok) throw new Error(`Link HTTP ${linkResponse.status}`);
-                let downloadUrl = await linkResponse.text();
-                
-                // 2. Download File (GET)
-                let fileResponse = await fetch(downloadUrl, { signal: signal });
-                if (!fileResponse.ok) throw new Error(`Download HTTP ${fileResponse.status}`);
-                let blob = await fileResponse.blob();
-
-                // 3. Construct Filename (Index + Date + Extension)
-                // Determine extension from original URL or default to mp4
-                let ext = "mp4";
-                let regexExt = downloadUrl.match(/(?<=\.)[a-z0-9]{3,4}(?=\?)/);
-                if (regexExt) ext = regexExt[0];
-
-                let dateStr = sanitizeDate(memory['Date']);
-                // Pad index to 4 digits (e.g., 0005)
-                let paddedIndex = String(i).padStart(4, '0');
-                
-                let finalFilename = `${paddedIndex}_${dateStr}_snap.${ext}`;
-
-                // 4. Save
-                forceDownload(blob, finalFilename);
-                log(`  > Saved: ${finalFilename}`, 'success');
-
-                // Delay to prevent freezing browser
-                await sleep(1200); 
-
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    log("User cancelled.", 'info');
-                } else {
-                    log(`  > FAILED: ${err.message}`, 'error');
-                }
-                // Optional: Wait even on error to not hammer CPU
-                await sleep(1000);
-            }
-        }
-
-        finish();
-    });
-
-    els.stopBtn.addEventListener('click', () => {
-        isRunning = false;
-        if(abortController) abortController.abort();
-        log("Stopping... please wait for current download to finish.");
-    });
-
-    function finish() {
-        isRunning = false;
-        els.startBtn.style.display = 'block';
-        els.stopBtn.style.display = 'none';
-        els.fileInput.disabled = false;
-        els.progressBar.style.width = "100%";
-        els.progressText.innerText = "Export Complete";
-        log("--- EXPORT COMPLETE ---", 'success');
-    }
-
     function forceDownload(blob, filename) {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -423,11 +348,154 @@
         a.download = filename;
         document.body.appendChild(a);
         a.click();
-        
         setTimeout(() => {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
         }, 100);
+    }
+
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // --- MAIN DOWNLOAD LOGIC ---
+    els.startBtn.addEventListener('click', async () => {
+        if (!memoryData.length) return;
+        
+        // Reset State
+        isRunning = true;
+        abortController = new AbortController();
+        const signal = abortController.signal;
+        activeIndices.clear();
+        completedCount = 0;
+        hasAttemptedDownload = false;
+
+        // UI Setup
+        els.startBtn.style.display = 'none';
+        els.stopBtn.style.display = 'block';
+        els.fileInput.disabled = true;
+        els.startIndex.disabled = true;
+        els.concurrency.disabled = true;
+
+        // Get Inputs
+        let startIdx = parseInt(els.startIndex.value) || 0;
+        let maxConcurrency = parseInt(els.concurrency.value) || 5;
+        if(maxConcurrency < 1) maxConcurrency = 1;
+        if(maxConcurrency > 20) maxConcurrency = 20;
+
+        let total = memoryData.length;
+        let globalIndex = startIdx; // The next index to be assigned to a worker
+
+        log(`--- STARTING EXPORT (Parallel: ${maxConcurrency}) ---`);
+
+        // Update Progress Helper
+        const updateProgress = () => {
+            let percent = ((globalIndex - startIdx) / (total - startIdx) * 100).toFixed(1);
+            if(percent > 100) percent = 100;
+            els.progressBar.style.width = `${percent}%`;
+            els.progressText.innerText = `${percent}% | Queued: #${globalIndex} | Active: ${activeIndices.size}`;
+        };
+
+        // Worker Function
+        const worker = async () => {
+            while (globalIndex < total && isRunning) {
+                // Acquire job
+                let currentIndex = globalIndex++; 
+                activeIndices.add(currentIndex);
+                hasAttemptedDownload = true;
+                updateProgress();
+
+                let memory = memoryData[currentIndex];
+                log(`[#${currentIndex}] Downloading... (${memory['Media Type']})`, 'info');
+
+                try {
+                    // 1. Get Link
+                    let linkRes = await fetch(memory['Download Link'], {
+                        method: 'POST',
+                        signal: signal,
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                    });
+                    if (!linkRes.ok) throw new Error(`Link HTTP ${linkRes.status}`);
+                    let downloadUrl = await linkRes.text();
+
+                    // 2. Download Content
+                    let fileRes = await fetch(downloadUrl, { signal: signal });
+                    if (!fileRes.ok) throw new Error(`File HTTP ${fileRes.status}`);
+                    let blob = await fileRes.blob();
+
+                    // 3. Name & Save
+                    let ext = "mp4";
+                    let regexExt = downloadUrl.match(/(?<=\.)[a-z0-9]{3,4}(?=\?)/);
+                    if (regexExt) ext = regexExt[0];
+
+                    let dateStr = sanitizeDate(memory['Date']);
+                    let paddedIndex = String(currentIndex).padStart(4, '0');
+                    let filename = `${paddedIndex}_${dateStr}_snap.${ext}`;
+
+                    forceDownload(blob, filename);
+                    completedCount++;
+                    // log(`[#${currentIndex}] Success`, 'success');
+
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        log(`[#${currentIndex}] FAILED: ${err.message}`, 'error');
+                    }
+                } finally {
+                    activeIndices.delete(currentIndex);
+                    updateProgress();
+                    // Small delay to prevent browser choke
+                    await sleep(200);
+                }
+            }
+        };
+
+        // Spawn Workers
+        const workers = [];
+        for (let i = 0; i < maxConcurrency; i++) {
+            workers.push(worker());
+        }
+
+        // Wait for all to finish
+        await Promise.all(workers);
+
+        if (isRunning) finish(); // Only finish if not manually stopped
+    });
+
+    els.stopBtn.addEventListener('click', () => {
+        // 1. Calculate Resume Index BEFORE killing the process
+        // The resume index is the LOWEST index currently active (or the next global if none active)
+        let resumeIndex = globalIndex;
+        if (activeIndices.size > 0) {
+            resumeIndex = Math.min(...activeIndices);
+        }
+
+        isRunning = false;
+        if(abortController) abortController.abort();
+        
+        log("🛑 STOPPING... Waiting for pending saves...", 'error');
+
+        // Logic to show Resume Index only if we actually did something
+        if (hasAttemptedDownload) {
+             setTimeout(() => {
+                log(`⚠️ STOPPED. To resume without missing files, use Start Index: ${resumeIndex}`, 'warn');
+             }, 500); // Small delay to ensure it appears at bottom
+        }
+
+        // Reset UI
+        setTimeout(resetUI, 1000);
+    });
+
+    function finish() {
+        log("--- EXPORT COMPLETE ---", 'success');
+        resetUI();
+        els.progressBar.style.width = "100%";
+        els.progressText.innerText = "Done";
+    }
+
+    function resetUI() {
+        els.startBtn.style.display = 'block';
+        els.stopBtn.style.display = 'none';
+        els.fileInput.disabled = false;
+        els.startIndex.disabled = false;
+        els.concurrency.disabled = false;
     }
 
     window.onbeforeunload = function() {
