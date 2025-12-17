@@ -1,0 +1,1 @@
+# magic-snapchat-memory-downloader
