@@ -36,8 +36,24 @@
             border-radius: 12px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.5);
             border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
         }
         
+        /* Critical Alert Banner */
+        #criticalAlert {
+            display: none;
+            background: var(--err);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+
         /* Header & Repo Link */
         .header-row {
             display: flex;
@@ -182,11 +198,7 @@
             font-weight: 800;
             font-size: 14px;
             letter-spacing: 0.5px;
-            /* Drop shadow to make text visible on both dark background and bright green bar */
-            text-shadow: 
-                0px 0px 4px #000, 
-                0px 0px 8px #000,
-                0px 0px 10px #000;
+            text-shadow: 0px 0px 4px #000, 0px 0px 8px #000;
             z-index: 10;
         }
 
@@ -202,6 +214,7 @@
             font-weight: bold;
         }
         .status-badge.ok { background: var(--accent); color: black; }
+        .status-badge.err { background: var(--err); color: white; }
 
         .privacy-note {
             margin-top: 20px;
@@ -216,6 +229,11 @@
 <body>
 
 <div class="container">
+    <div id="criticalAlert">
+        <i class="fas fa-exclamation-triangle"></i> ALERT: CORS EXTENSION DISCONNECTED! <br>
+        <span style="font-size: 12px; font-weight: normal;">Downloads will fail. Please re-enable the extension immediately.</span>
+    </div>
+
     <div class="header-row">
         <h1>Magic Snapchat Downloader</h1>
         <a href="https://github.com/snehsagarajput/magic-snapchat-memory-downloader" target="_blank" class="repo-link">
@@ -289,6 +307,7 @@
     let activeIndices = new Set();
     let completedCount = 0;
     let globalIndex = 0;
+    let extensionCheckInterval = null;
 
     // --- DOM Elements ---
     const els = {
@@ -305,7 +324,8 @@
         progressText: document.getElementById('progressText'),
         startIndex: document.getElementById('startIndex'),
         concurrency: document.getElementById('concurrency'),
-        clearLogBtn: document.getElementById('clearLogBtn')
+        clearLogBtn: document.getElementById('clearLogBtn'),
+        criticalAlert: document.getElementById('criticalAlert')
     };
 
     // --- Logging System ---
@@ -328,30 +348,56 @@
         els.consoleDiv.innerHTML = '<div class="log-info">> Logs cleared.</div>';
     });
 
-    // --- CORS Check ---
-    els.checkCorsBtn.addEventListener('click', async () => {
-        log("Testing connection permissions...", 'info');
+    // --- Extension Status Checker ---
+    async function checkExtensionStatus() {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const timeoutId = setTimeout(() => controller.abort(), 2000); // Short timeout for background check
             
             await fetch('https://www.google.com', { 
                 method: 'GET', 
                 mode: 'cors',
                 signal: controller.signal
             });
-            
             clearTimeout(timeoutId);
-            unlockSteps();
+
+            // Success
+            els.corsStatus.innerText = "CONNECTED";
+            els.corsStatus.className = "status-badge ok";
+            els.step1.style.borderLeftColor = "#00e676";
+            els.criticalAlert.style.display = 'none';
+
         } catch (err) {
-            log("❌ Extension not detected. Please install 'Allow CORS' and toggle it ON.", 'error');
+            // Fail
+            els.corsStatus.innerText = "DISCONNECTED";
+            els.corsStatus.className = "status-badge err";
+            els.step1.style.borderLeftColor = "#ff5252";
+
+            if (isRunning) {
+                els.criticalAlert.style.display = 'block';
+                log("⚠️ CRITICAL: CORS EXTENSION DISCONNECTED. DOWNLOADS MAY FAIL.", 'warn');
+                alert("⚠️ WARNING: The CORS extension seems to be inactive!\n\nPlease re-enable it immediately to prevent download errors.");
+            }
+        }
+    }
+
+    // Start background check every 10 seconds
+    setInterval(checkExtensionStatus, 10000);
+
+    // --- Manual CORS Check (Button) ---
+    els.checkCorsBtn.addEventListener('click', async () => {
+        log("Testing connection permissions...", 'info');
+        await checkExtensionStatus();
+        
+        // Only unlock if check passed (we check class name set by the function above)
+        if (els.corsStatus.classList.contains('ok')) {
+            unlockSteps();
+        } else {
+             log("❌ Extension not detected. Please install 'Allow CORS' and toggle it ON.", 'error');
         }
     });
 
     function unlockSteps() {
-        els.corsStatus.innerText = "CONNECTED";
-        els.corsStatus.className = "status-badge ok";
-        els.step1.style.borderLeftColor = "#00e676"; // Green border
         els.checkCorsBtn.innerText = "Extension Active";
         els.checkCorsBtn.disabled = true;
         
@@ -565,6 +611,7 @@
         els.startIndex.disabled = false;
         els.concurrency.disabled = false;
         els.progressBar.style.backgroundColor = ""; // Reset color
+        els.criticalAlert.style.display = 'none'; // Hide alert on reset
     }
 
     window.onbeforeunload = function() {
