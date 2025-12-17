@@ -3,21 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnapSaver Local - Memory Exporter</title>
+    <title>Magic Snapchat Memory Downloader</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
-            --bg: #1a1a1a;
-            --term-bg: #000;
-            --text: #0f0;
-            --accent: #00ff00;
-            --err: #ff4444;
-            --dim: #666;
-            --panel: #2a2a2a;
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --text-main: #ffffff;
+            --text-dim: #b0b0b0;
+            --accent: #00e676; /* Bright Green */
+            --accent-hover: #00c853;
+            --err: #ff5252;
+            --warn: #ffd740;
+            --border: #333;
         }
         body {
-            font-family: 'Courier New', Courier, monospace;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg);
-            color: #ddd;
+            color: var(--text-main);
             margin: 0;
             padding: 20px;
             display: flex;
@@ -27,159 +30,219 @@
         }
         .container {
             width: 100%;
-            max-width: 800px;
+            max-width: 850px;
             background: var(--panel);
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            border: 1px solid var(--border);
         }
-        h1 { color: var(--accent); margin-top: 0; text-align: center; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 5px;}
-        .subtitle { text-align: center; font-size: 12px; color: #888; margin-bottom: 20px; display: block;}
+        
+        /* Header & Repo Link */
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+        }
+        h1 { 
+            color: var(--accent); 
+            margin: 0; 
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .repo-link {
+            text-decoration: none;
+            color: var(--bg);
+            background: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s;
+        }
+        .repo-link:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255,255,255,0.2); }
         
         /* Steps */
         .step-box {
-            background: #333;
-            padding: 15px;
-            border-radius: 6px;
+            background: #252525;
+            padding: 20px;
+            border-radius: 8px;
             margin-bottom: 20px;
-            border-left: 4px solid var(--dim);
+            border-left: 4px solid #444;
+            transition: all 0.3s ease;
         }
-        .step-box.active { border-left-color: var(--accent); background: #333; }
-        .step-box.locked { opacity: 0.5; pointer-events: none; }
-        .step-title { font-weight: bold; color: white; margin-bottom: 8px; display: block; }
+        .step-box.active { border-left-color: var(--accent); background: #2a2a2a; }
+        .step-box.locked { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
+        .step-title { font-weight: 700; color: var(--text-main); margin-bottom: 10px; display: block; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;}
         
-        a { color: #4db8ff; text-decoration: none; border-bottom: 1px dotted #4db8ff; }
-        a:hover { color: white; }
+        a { color: #64b5f6; text-decoration: none; border-bottom: 1px dotted #64b5f6; }
+        a:hover { color: #9be7ff; }
 
         /* Inputs Grid */
         .input-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 10px;
+            gap: 20px;
+            margin-top: 15px;
         }
-        .input-group label { font-size: 12px; color: #aaa; display: block; margin-bottom: 4px; }
+        .input-group label { font-size: 13px; color: var(--text-dim); display: block; margin-bottom: 6px; }
         
         input[type="file"], input[type="number"] {
             width: 100%;
-            padding: 10px;
-            background: #222;
-            border: 1px solid #555;
-            color: white;
-            border-radius: 4px;
+            padding: 12px;
+            background: #181818;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 6px;
             box-sizing: border-box;
+            font-family: monospace;
+            font-size: 14px;
         }
+        input:focus { outline: none; border-color: var(--accent); }
         
-        .btn-row { display: flex; gap: 10px; }
+        /* Buttons */
+        .btn-row { display: flex; gap: 15px; margin-top: 10px; }
         button {
             background: var(--accent);
-            color: black;
+            color: #000;
             border: none;
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: bold;
+            padding: 14px 24px;
+            font-size: 15px;
+            font-weight: 800;
             cursor: pointer;
-            border-radius: 4px;
+            border-radius: 6px;
             flex: 1;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.2s;
         }
-        button:disabled { background: var(--dim); cursor: not-allowed; color: #888; }
-        button:hover:not(:disabled) { opacity: 0.9; }
+        button:disabled { background: #444; cursor: not-allowed; color: #888; }
+        button:hover:not(:disabled) { background: var(--accent-hover); box-shadow: 0 0 15px rgba(0, 230, 118, 0.3); }
+        
         button.stop { background: var(--err); color: white; display: none; }
-        button.check { background: #4db8ff; color: #000; }
+        button.stop:hover { background: #d32f2f; box-shadow: 0 0 15px rgba(255, 82, 82, 0.3); }
+        
+        button.check { background: #2979ff; color: #fff; font-weight: 600; width: 100%; margin-top: 10px;}
+        button.check:hover { background: #2962ff; }
 
         /* Terminal */
+        .console-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 25px;
+            margin-bottom: 5px;
+        }
+        .console-title { font-size: 12px; color: var(--text-dim); font-weight: bold; text-transform: uppercase; }
+        .clear-btn { background: transparent; border: 1px solid #444; color: #888; padding: 4px 10px; font-size: 11px; flex: none; width: auto; }
+        .clear-btn:hover { background: #333; color: white; box-shadow: none; }
+
         .terminal {
-            background: var(--term-bg);
-            color: var(--text);
+            background: #0a0a0a;
+            color: #eee;
             height: 250px;
             overflow-y: auto;
             padding: 15px;
-            border-radius: 4px;
-            border: 1px solid #444;
-            margin-top: 20px;
-            font-size: 12px;
+            border-radius: 6px;
+            border: 1px solid #333;
+            font-size: 13px;
+            font-family: 'Consolas', 'Monaco', monospace;
             white-space: pre-wrap;
-            font-family: 'Consolas', monospace;
+            line-height: 1.4;
         }
-        .log-entry { margin-bottom: 2px; }
+        .log-entry { margin-bottom: 3px; border-bottom: 1px solid #111; padding-bottom: 2px;}
         .log-err { color: var(--err); }
         .log-success { color: var(--accent); }
-        .log-warn { color: orange; font-weight: bold; border: 1px dashed orange; padding: 5px; margin: 5px 0; }
+        .log-warn { color: var(--warn); }
         .log-info { color: #888; }
         
-        /* Progress */
-        .progress-container {
-            background: #444;
-            height: 24px;
-            border-radius: 12px;
-            margin-top: 20px;
-            overflow: hidden;
-            position: relative;
-        }
+        /* Progress Bar */
+        .progress-wrapper { position: relative; height: 32px; background: #333; border-radius: 16px; margin-top: 25px; overflow: hidden; border: 1px solid #444; }
         .progress-bar {
             background: var(--accent);
             height: 100%;
             width: 0%;
-            transition: width 0.3s ease;
+            transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 0 20px rgba(0, 230, 118, 0.4);
         }
         .progress-text {
             position: absolute;
             width: 100%;
             text-align: center;
             top: 0;
-            line-height: 24px;
-            color: black;
-            font-weight: bold;
-            font-size: 12px;
-            text-shadow: 0px 0px 2px rgba(255,255,255,0.5);
+            line-height: 32px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            /* Drop shadow to make text visible on both dark background and bright green bar */
+            text-shadow: 
+                0px 0px 4px #000, 
+                0px 0px 8px #000,
+                0px 0px 10px #000;
+            z-index: 10;
         }
 
+        /* Status Badge */
         .status-badge {
             display: inline-block;
-            padding: 2px 6px;
-            border-radius: 3px;
+            padding: 3px 8px;
+            border-radius: 4px;
             font-size: 11px;
             margin-left: 10px;
-            background: #555;
+            background: #333;
             color: #aaa;
+            font-weight: bold;
         }
         .status-badge.ok { background: var(--accent); color: black; }
 
         .privacy-note {
-            margin-top: 15px;
-            font-size: 11px;
-            color: #666;
+            margin-top: 20px;
+            font-size: 12px;
+            color: var(--text-dim);
             text-align: center;
-            border-top: 1px solid #333;
-            padding-top: 10px;
+            border-top: 1px solid var(--border);
+            padding-top: 15px;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>SnapSaver Local</h1>
-    <span class="subtitle">Client-Side Memory Exporter</span>
+    <div class="header-row">
+        <h1>Magic Snapchat Downloader</h1>
+        <a href="https://github.com/snehsagarajput/magic-snapchat-memory-downloader" target="_blank" class="repo-link">
+            <i class="fab fa-github"></i> Star on GitHub
+        </a>
+    </div>
 
     <div class="step-box active" id="step1">
-        <span class="step-title">STEP 1: ENABLE EXTENSION <span id="corsStatus" class="status-badge">NOT DETECTED</span></span>
-        <p style="margin: 5px 0 10px 0; font-size: 13px;">
-            Required to bypass browser security. Install 
+        <span class="step-title">Step 1: Enable Extension <span id="corsStatus" class="status-badge">NOT DETECTED</span></span>
+        <p style="margin: 5px 0 15px 0; font-size: 14px; color: #ccc;">
+            Browsers block direct downloads from Snapchat. Install the 
             <a href="https://chromewebstore.google.com/detail/allow-cors-access-control/lhobafahddgcelffkeicbaginigeejlf" target="_blank">Allow CORS Extension</a> 
-            and <strong>toggle it ON</strong>.
+            and <strong>toggle it ON</strong> (Purple Icon).
         </p>
         <button class="check" id="checkCorsBtn">Verify Extension is On</button>
     </div>
 
     <div class="step-box locked" id="step2">
-        <span class="step-title">STEP 2: CONFIGURE</span>
-        <label style="font-size:13px">Load 'memories_history.json':</label>
-        <input type="file" id="fileInput" accept=".json" disabled>
+        <span class="step-title">Step 2: Configure</span>
+        <div class="input-group">
+            <label>Load 'memories_history.json':</label>
+            <input type="file" id="fileInput" accept=".json" disabled>
+        </div>
         
         <div class="input-grid">
             <div class="input-group">
-                <label>Start Index:</label>
+                <label>Start Index (Optional):</label>
                 <input type="number" id="startIndex" value="0" min="0" placeholder="0" disabled>
             </div>
             <div class="input-group">
@@ -190,9 +253,9 @@
     </div>
 
     <div class="step-box locked" id="step3">
-        <span class="step-title">STEP 3: DOWNLOAD</span>
-        <p style="font-size: 12px; margin-bottom: 10px; color: #aaa;">
-            <strong>Note:</strong> Your browser will ask permission to download multiple files. Click <strong>Allow</strong>.
+        <span class="step-title">Step 3: Download</span>
+        <p style="font-size: 13px; margin-bottom: 15px; color: var(--text-dim);">
+            <strong>Note:</strong> When you start, the browser will ask to "Allow multiple downloads". You must click <strong>Allow</strong>.
         </p>
         <div class="btn-row">
             <button id="startBtn" disabled>START DOWNLOAD</button>
@@ -200,28 +263,34 @@
         </div>
     </div>
 
-    <div class="progress-container">
+    <div class="progress-wrapper">
         <div class="progress-bar" id="progressBar"></div>
-        <div class="progress-text" id="progressText">Waiting...</div>
+        <div class="progress-text" id="progressText">Ready to Start</div>
     </div>
 
+    <div class="console-header">
+        <span class="console-title">Log Output</span>
+        <button class="clear-btn" id="clearLogBtn">Clear Logs</button>
+    </div>
     <div class="terminal" id="consoleOutput">
-        <div class="log-info">> System ready. Waiting for extension verification.</div>
+        <div class="log-info">> System ready. Waiting for extension verification...</div>
     </div>
 
     <div class="privacy-note">
-        🔒 <strong>100% Private & Local.</strong> This tool runs entirely in your browser. No data is sent to any server.
+        <i class="fas fa-lock"></i> <strong>100% Private & Local.</strong> This tool runs in your browser. No data is sent to us.
     </div>
 </div>
 
 <script>
+    // --- Global State ---
     let memoryData = [];
     let isRunning = false;
     let abortController = null;
-    let activeIndices = new Set(); // Tracks currently downloading indexes
+    let activeIndices = new Set();
     let completedCount = 0;
-    let hasAttemptedDownload = false;
+    let globalIndex = 0;
 
+    // --- DOM Elements ---
     const els = {
         step1: document.getElementById('step1'),
         step2: document.getElementById('step2'),
@@ -235,9 +304,11 @@
         progressBar: document.getElementById('progressBar'),
         progressText: document.getElementById('progressText'),
         startIndex: document.getElementById('startIndex'),
-        concurrency: document.getElementById('concurrency')
+        concurrency: document.getElementById('concurrency'),
+        clearLogBtn: document.getElementById('clearLogBtn')
     };
 
+    // --- Logging System ---
     function log(msg, type = 'normal') {
         const div = document.createElement('div');
         div.className = 'log-entry';
@@ -247,19 +318,17 @@
         if (type === 'info') div.className += ' log-info';
         
         const time = new Date().toLocaleTimeString('en-US', {hour12: false});
-        
-        // Don't add timestamp to warning blocks
-        if(type === 'warn') {
-            div.innerText = msg;
-        } else {
-            div.innerText = `[${time}] ${msg}`;
-        }
+        div.innerText = (type === 'warn' || type === 'info') ? msg : `[${time}] ${msg}`;
         
         els.consoleDiv.appendChild(div);
         els.consoleDiv.scrollTop = els.consoleDiv.scrollHeight;
     }
 
-    // --- STEP 1: CORS Check ---
+    els.clearLogBtn.addEventListener('click', () => {
+        els.consoleDiv.innerHTML = '<div class="log-info">> Logs cleared.</div>';
+    });
+
+    // --- CORS Check ---
     els.checkCorsBtn.addEventListener('click', async () => {
         log("Testing connection permissions...", 'info');
         try {
@@ -282,7 +351,7 @@
     function unlockSteps() {
         els.corsStatus.innerText = "CONNECTED";
         els.corsStatus.className = "status-badge ok";
-        els.step1.style.borderLeftColor = "#00ff00";
+        els.step1.style.borderLeftColor = "#00e676"; // Green border
         els.checkCorsBtn.innerText = "Extension Active";
         els.checkCorsBtn.disabled = true;
         
@@ -293,7 +362,7 @@
         log("✅ Extension verified. Please select your JSON file.", 'success');
     }
 
-    // --- STEP 2: File Load ---
+    // --- File Loading ---
     els.fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -313,6 +382,7 @@
                 els.step3.className = "step-box active";
                 els.startBtn.disabled = false;
                 els.startBtn.innerText = `START DOWNLOAD (${memoryData.length} FILES)`;
+                els.progressText.innerText = "Ready - " + memoryData.length + " files loaded";
             } catch (err) {
                 log(`JSON Error: ${err.message}`, 'error');
                 alert("Invalid JSON file.");
@@ -333,11 +403,8 @@
             const h = String(d.getHours()).padStart(2, '0');
             const m = String(d.getMinutes()).padStart(2, '0');
             const s = String(d.getSeconds()).padStart(2, '0');
-            
             return `${yyyy}-${mm}-${dd}_${h}-${m}-${s}`;
-        } catch (e) {
-            return "unknown_date";
-        }
+        } catch (e) { return "unknown_date"; }
     }
 
     function forceDownload(blob, filename) {
@@ -356,51 +423,46 @@
 
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-    // --- MAIN DOWNLOAD LOGIC ---
+    // --- MAIN LOGIC ---
     els.startBtn.addEventListener('click', async () => {
         if (!memoryData.length) return;
         
-        // Reset State
+        // Init State
         isRunning = true;
         abortController = new AbortController();
         const signal = abortController.signal;
         activeIndices.clear();
         completedCount = 0;
-        hasAttemptedDownload = false;
 
-        // UI Setup
+        // UI Updates
         els.startBtn.style.display = 'none';
         els.stopBtn.style.display = 'block';
         els.fileInput.disabled = true;
         els.startIndex.disabled = true;
         els.concurrency.disabled = true;
 
-        // Get Inputs
         let startIdx = parseInt(els.startIndex.value) || 0;
         let maxConcurrency = parseInt(els.concurrency.value) || 5;
         if(maxConcurrency < 1) maxConcurrency = 1;
         if(maxConcurrency > 20) maxConcurrency = 20;
 
         let total = memoryData.length;
-        let globalIndex = startIdx; // The next index to be assigned to a worker
+        globalIndex = startIdx; 
 
-        log(`--- STARTING EXPORT (Parallel: ${maxConcurrency}) ---`);
+        log(`--- STARTED (Threads: ${maxConcurrency}, Start: ${startIdx}) ---`, 'success');
 
-        // Update Progress Helper
         const updateProgress = () => {
+            if(!isRunning) return;
             let percent = ((globalIndex - startIdx) / (total - startIdx) * 100).toFixed(1);
             if(percent > 100) percent = 100;
             els.progressBar.style.width = `${percent}%`;
             els.progressText.innerText = `${percent}% | Queued: #${globalIndex} | Active: ${activeIndices.size}`;
         };
 
-        // Worker Function
-        const worker = async () => {
+        const worker = async (workerId) => {
             while (globalIndex < total && isRunning) {
-                // Acquire job
                 let currentIndex = globalIndex++; 
                 activeIndices.add(currentIndex);
-                hasAttemptedDownload = true;
                 updateProgress();
 
                 let memory = memoryData[currentIndex];
@@ -413,15 +475,19 @@
                         signal: signal,
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
                     });
+                    
                     if (!linkRes.ok) throw new Error(`Link HTTP ${linkRes.status}`);
                     let downloadUrl = await linkRes.text();
 
-                    // 2. Download Content
+                    // 2. Check stop signal again before big download
+                    if(!isRunning) throw new Error("Stopped by user");
+
+                    // 3. Download File
                     let fileRes = await fetch(downloadUrl, { signal: signal });
                     if (!fileRes.ok) throw new Error(`File HTTP ${fileRes.status}`);
                     let blob = await fileRes.blob();
 
-                    // 3. Name & Save
+                    // 4. Save
                     let ext = "mp4";
                     let regexExt = downloadUrl.match(/(?<=\.)[a-z0-9]{3,4}(?=\?)/);
                     if (regexExt) ext = regexExt[0];
@@ -430,57 +496,59 @@
                     let paddedIndex = String(currentIndex).padStart(4, '0');
                     let filename = `${paddedIndex}_${dateStr}_snap.${ext}`;
 
-                    forceDownload(blob, filename);
-                    completedCount++;
-                    // log(`[#${currentIndex}] Success`, 'success');
+                    if(isRunning) {
+                        forceDownload(blob, filename);
+                        completedCount++;
+                    }
 
                 } catch (err) {
-                    if (err.name !== 'AbortError') {
+                    // Ignore AbortErrors (user stopped)
+                    if (err.name !== 'AbortError' && err.message !== "Stopped by user") {
                         log(`[#${currentIndex}] FAILED: ${err.message}`, 'error');
                     }
                 } finally {
                     activeIndices.delete(currentIndex);
                     updateProgress();
-                    // Small delay to prevent browser choke
-                    await sleep(200);
+                    // Throttle
+                    await sleep(100); 
                 }
             }
         };
 
-        // Spawn Workers
+        // Launch Workers
         const workers = [];
-        for (let i = 0; i < maxConcurrency; i++) {
-            workers.push(worker());
-        }
-
-        // Wait for all to finish
+        for (let i = 0; i < maxConcurrency; i++) workers.push(worker(i));
+        
         await Promise.all(workers);
 
-        if (isRunning) finish(); // Only finish if not manually stopped
+        if (isRunning) {
+            finish();
+        }
     });
 
+    // --- STOP LOGIC ---
     els.stopBtn.addEventListener('click', () => {
-        // 1. Calculate Resume Index BEFORE killing the process
-        // The resume index is the LOWEST index currently active (or the next global if none active)
+        // 1. Immediate Flag Kill
+        isRunning = false;
+        
+        // 2. Abort Net Requests
+        if(abortController) abortController.abort();
+        
+        // 3. Calculate Resume Point
         let resumeIndex = globalIndex;
         if (activeIndices.size > 0) {
             resumeIndex = Math.min(...activeIndices);
         }
 
-        isRunning = false;
-        if(abortController) abortController.abort();
+        log("🛑 STOP COMMAND RECEIVED. Killing processes...", 'error');
         
-        log("🛑 STOPPING... Waiting for pending saves...", 'error');
+        els.progressText.innerText = "STOPPED";
+        els.progressBar.style.backgroundColor = "#ff5252"; // Red bar on stop
 
-        // Logic to show Resume Index only if we actually did something
-        if (hasAttemptedDownload) {
-             setTimeout(() => {
-                log(`⚠️ STOPPED. To resume without missing files, use Start Index: ${resumeIndex}`, 'warn');
-             }, 500); // Small delay to ensure it appears at bottom
-        }
-
-        // Reset UI
-        setTimeout(resetUI, 1000);
+        setTimeout(() => {
+            log(`⚠️ Process Terminated. To resume safely, set Start Index to: ${resumeIndex}`, 'warn');
+            resetUI();
+        }, 500);
     });
 
     function finish() {
@@ -496,6 +564,7 @@
         els.fileInput.disabled = false;
         els.startIndex.disabled = false;
         els.concurrency.disabled = false;
+        els.progressBar.style.backgroundColor = ""; // Reset color
     }
 
     window.onbeforeunload = function() {
